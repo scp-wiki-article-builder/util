@@ -7,7 +7,15 @@
  */
 
 /**
- * @typedef {Object<string, (ParamType | OptionalParamType)>} NamedParamTypes
+ * @typedef {function(): NamedParamTypes} NestedParamTypes
+ */
+
+/**
+ * @typedef {(ParamType | OptionalParamType | NestedParamTypes)} NamedParamType
+ */
+
+/**
+ * @typedef {Object<string, NamedParamType>} NamedParamTypes
  */
 
 /**
@@ -265,10 +273,8 @@ const _checkNamedParams = (namedParamsTypes, namedParams) => {
  * @returns {string[]}
  */
 const getMandatoryParamNames = (namedParamsTypes) =>
-    Object.keys(namedParamsTypes).filter(paramName => {
-        const type = namedParamsTypes[paramName];
-        return typeof type === 'string' || !type.optional;
-    });
+    getParamNames([], namedParamsTypes,
+        (paramType) => typeof paramType === 'string' || !paramType.optional);
 
 /**
  * Returns a component's optional parameters names.
@@ -276,10 +282,33 @@ const getMandatoryParamNames = (namedParamsTypes) =>
  * @returns {string[]}
  */
 const getOptionalParamNames = (namedParamsTypes) =>
-    Object.keys(namedParamsTypes).filter(paramName => {
-        const type = namedParamsTypes[paramName];
-        return typeof type !== 'string' && type.optional;
-    });
+    getParamNames([], namedParamsTypes,
+        (paramType) => typeof paramType === 'object' && paramType.optional);
+
+/**
+ * Returns all the parameters (as paths).
+ * @param {string[]} path
+ * @param {NamedParamTypes} pathNamedParamsTypes
+ * @param {function((ParamType | OptionalParamType)): boolean} filterFn
+ * @returns {string[]}
+ */
+const getParamNames = (path, pathNamedParamsTypes, filterFn) =>
+    Object.keys(pathNamedParamsTypes).reduce((list, paramName) => {
+        const paramType = pathNamedParamsTypes[paramName];
+        const paramTypeType = typeof paramType;
+
+        if (paramTypeType === 'string' || paramTypeType === 'object') {
+            // { name: 'typeName' } or { name: { type: 'typeName', optional: isOptional } }
+            if (!filterFn || filterFn(paramType)) {
+                return [ ...list, [ ...path, paramName].join('.') ];
+            } else {
+                return list;
+            }
+        } else if (paramTypeType === 'function') {
+            // { name: () => ({ name: 'typeName' }) }
+            return [ ...list, ...getParamNames([ ...path, paramName ], paramType(), filterFn) ];
+        }
+    }, []);
 
 /**
  * Returns missing parameters.
@@ -310,37 +339,126 @@ const getWronglyTypedParams = (paramsTypeCheckResults) =>
  */
 const checkParams = (paramsNames, namedParamsTypes, namedParams) =>
     paramsNames.map(paramName => {
-        if (namedParams.hasOwnProperty(paramName)) {
+        if (hasParam(namedParams, paramName)) {
             return {
                 paramName,
-                result: checkType(namedParamsTypes[paramName], namedParams[paramName])
+                result: checkParamType(paramName, namedParamsTypes, namedParams)
             };
         }
         return {
             paramName,
             result: {
                 success: false,
-                expected: namedParamsTypes[paramName],
+                expected: getParamExpectedType(paramName, namedParamsTypes),
                 actual: null
             }
         };
     });
 
 /**
- * Checks if a given value is of the right type.
- * @param {(ParamType | OptionalParamType)} expectedType
- * @param {any} givenValue
+ * Returns a parameter expected type.
+ * @param {string} paramName
+ * @param {NamedParamTypes} pathNamedParamsTypes
+ * @returns {ParamType}
+ */
+const getParamExpectedType = (paramName, pathNamedParamsTypes) => {
+    /**
+     * @param {string[]} remainingPath
+     * @param {NamedParamTypes} pathNamedParamsTypes
+     * @returns {ParamType}
+     */
+    const getParamExpectedTypePath = (remainingPath, pathNamedParamsTypes) => {
+        if (remainingPath.length === 1) {
+            let expectedType = pathNamedParamsTypes[remainingPath[0]];
+            expectedType = typeof expectedType === 'string'
+                ? expectedType
+                : typeof expectedType === 'object'
+                    ? expectedType.type
+                    : (() => { throw 'Illegal state' })();
+            return expectedType;
+        } else {
+            let subpathParamTypes = pathNamedParamsTypes[remainingPath[0]];
+            subpathParamTypes = typeof subpathParamTypes === 'function'
+                ? subpathParamTypes()
+                : subpathParamTypes;
+            return getParamExpectedTypePath(remainingPath.splice(1), subpathParamTypes);
+        }
+    };
+
+    return getParamExpectedTypePath(paramName.split('.'), pathNamedParamsTypes);
+};
+
+/**
+ * Checks that an object have a path of properties.
+ * @param {any} namedParams
+ * @param {string} pathParamName
+ * @returns {boolean}
+ */
+const hasParam = (namedParams, pathParamName) => {
+    /**
+     * @param {any} pathNamedParams
+     * @param {string[]} remainingPath
+     * @returns {boolean}
+     */
+    const hasParamPath = (pathNamedParams, remainingPath) => {
+        const check = pathNamedParams.hasOwnProperty(remainingPath[0]);
+        if (check) {
+            if (remainingPath.length > 1) {
+                return hasParamPath(pathNamedParams[remainingPath[0]], remainingPath.splice(1));
+            } else {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    return hasParamPath(namedParams, pathParamName.split('.'));
+};
+
+/**
+ * Checks the type of a parameter name path.
+ * @param {string} pathParamName
+ * @param {NamedParamTypes} namedParamTypes
+ * @param {any} namedParamValues
  * @returns {TypeCheckResult}
  */
-const checkType = (expectedType, givenValue) => {
-    expectedType = typeof expectedType === 'string' ? expectedType : expectedType.type;
-    const givenType = typeof givenValue;
+const checkParamType = (pathParamName, namedParamTypes, namedParamValues) => {
+    /**
+     * @param {string[]} remainingPath
+     * @param {NamedParamTypes} pathParamTypes
+     * @param {any} pathParamValues
+     * @returns {TypeCheckResult}
+     */
+    const checkParamTypePath = (remainingPath, pathParamTypes, pathParamValues) => {
+        if (remainingPath.length === 1) {
+            let expectedType = pathParamTypes[remainingPath[0]];
+            const givenType = typeof pathParamValues[remainingPath[0]];
 
-    return {
-        success: givenType === expectedType,
-        expected: expectedType,
-        actual: givenType
+            expectedType = typeof expectedType === 'string'
+                ? expectedType
+                : typeof expectedType === 'object'
+                    ? expectedType.type
+                    : (() => { throw 'Illegal state' })();
+
+            return {
+                success: givenType === expectedType,
+                expected: expectedType,
+                actual: givenType
+            };
+        } else {
+            let subpathParamTypes = pathParamTypes[remainingPath[0]];
+            subpathParamTypes = typeof subpathParamTypes === 'function'
+                ? subpathParamTypes()
+                : subpathParamTypes;
+            return checkParamTypePath(
+                remainingPath.splice(1),
+                subpathParamTypes,
+                pathParamValues[remainingPath[0]]
+            );
+        }
     };
+
+    return checkParamTypePath(pathParamName.split('.'), namedParamTypes, namedParamValues);
 };
 
 /**
