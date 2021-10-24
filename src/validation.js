@@ -1,5 +1,5 @@
 /**
- * @typedef {('number' | 'string' | 'boolean' | 'object')} ParamType
+ * @typedef {('number' | 'string' | 'boolean' | 'object' | 'components')} ParamType
  */
 
 /**
@@ -432,7 +432,8 @@ const checkParamType = (pathParamName, namedParamTypes, namedParamValues) => {
     const checkParamTypePath = (remainingPath, pathParamTypes, pathParamValues) => {
         if (remainingPath.length === 1) {
             let expectedType = pathParamTypes[remainingPath[0]];
-            const givenType = typeof pathParamValues[remainingPath[0]];
+            const givenValue = pathParamValues[remainingPath[0]];
+            const givenType = typeof givenValue;
 
             expectedType = typeof expectedType === 'string'
                 ? expectedType
@@ -440,8 +441,13 @@ const checkParamType = (pathParamName, namedParamTypes, namedParamValues) => {
                     ? expectedType.type
                     : (() => { throw 'Illegal state' })();
 
+            const success = expectedType === 'components'
+                ? typeof givenValue === 'object'
+                    && Object.keys(givenValue)
+                        .every(key => typeof givenValue[key] === 'function')
+                : givenType === expectedType;
             return {
-                success: givenType === expectedType,
+                success,
                 expected: expectedType,
                 actual: givenType
             };
