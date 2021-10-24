@@ -1,8 +1,14 @@
-import { checkHasChildren, checkNamedParams } from './src/validation.js';
+import {
+    checkComponentHasChildren,
+    checkComponentNamedParams,
+    checkNamedParams
+} from './src/validation.js';
+
 import { dedent } from './src/strings.js';
 
 export {
-    checkHasChildren,
+    checkComponentHasChildren,
+    checkComponentNamedParams,
     checkNamedParams,
     dedent
 };

@@ -1,5 +1,5 @@
 /**
- * @typedef {('number' | 'string' | 'boolean')} ParamType
+ * @typedef {('number' | 'string' | 'boolean' | 'object')} ParamType
  */
 
 /**
@@ -19,7 +19,15 @@
  */
 
 /**
- * @typedef {('type-check')} ErrorType
+ * @typedef {('type-check' | 'component-type-check')} ErrorType
+ */
+
+/**
+ * @typedef {Object} ValidationResult
+ * @property {string[]} missingMandatoryParamsNames
+ * @property {ParamTypeCheckResult[]} wronglyTypedMandatoryParams
+ * @property {ParamTypeCheckResult[]} wronglyTypedOptionalParams
+ * @property {string[]} illegalParamsNames
  */
 
 export class Error {
@@ -31,14 +39,24 @@ export class Error {
     }
 }
 
-export class TypeCheckError extends Error {
+export class ComponentTypeCheckError extends Error {
     /**
      * @param {string} componentName
      * @param {string} message
      */
     constructor(componentName, message) {
-        super('type-check');
+        super('component-type-check');
         this.componentName = componentName;
+        this.message = message;
+    }
+}
+
+export class TypeCheckError extends Error {
+    /**
+     * @param {string} message
+     */
+    constructor(message) {
+        super('type-check');
         this.message = message;
     }
 }
@@ -68,10 +86,10 @@ const wrongTypeMessage = (paramName, expectedType, actualType, isOptional) =>
  * @param {string} componentName
  * @param {Handlebars.HelperOptions} componentOptions
  */
-export const checkHasChildren = (componentName, componentOptions) => {
+export const checkComponentHasChildren = (componentName, componentOptions) => {
     if (!componentOptions.fn) {
         throw new ValidationException([
-            new TypeCheckError(
+            new ComponentTypeCheckError(
                 componentName,
                 'This component needs an opening and a closing tag.'
             )
@@ -80,26 +98,27 @@ export const checkHasChildren = (componentName, componentOptions) => {
 };
 
 /**
- * Checks named parameters types.
+ * Checks a component named parameters types.
  * @param {string} componentName
  * @param {NamedParamTypes} namedParamsTypes
  * @param {Object} namedParams
  * @throws {ValidationException}
  */
-export const checkNamedParams = (componentName, namedParamsTypes, namedParams) => {
+export const checkComponentNamedParams = (componentName, namedParamsTypes, namedParams) => {
     const errors = [];
 
-    const mandatoryParamsNames = getMandatoryParamNames(namedParamsTypes);
-    const mandatoryParamsChecks = checkParams(mandatoryParamsNames, namedParamsTypes, namedParams);
-    const missingMandatoryParams = getMissingParams(mandatoryParamsChecks);
-    const wronglyTypedMandatoryParams = getWronglyTypedParams(mandatoryParamsChecks);
-    const missingMandatoryParamsNames = Object.keys(missingMandatoryParams);
+    const {
+        missingMandatoryParamsNames,
+        wronglyTypedMandatoryParams,
+        wronglyTypedOptionalParams,
+        illegalParamsNames
+    } = _checkNamedParams(namedParamsTypes, namedParams);
 
     if (missingMandatoryParamsNames.length > 0) {
         missingMandatoryParamsNames.forEach(paramName => {
             const param = missingMandatoryParams[paramName];
             const paramType = typeof param === 'string' ? param : param.type;
-            errors.push(new TypeCheckError(
+            errors.push(new ComponentTypeCheckError(
                 componentName,
                 `Missing mandatory parameter "${paramName}" of type "${paramType}".`
             ));
@@ -108,7 +127,7 @@ export const checkNamedParams = (componentName, namedParamsTypes, namedParams) =
 
     if (wronglyTypedMandatoryParams.length > 0) {
         wronglyTypedMandatoryParams.forEach(param => {
-            errors.push(new TypeCheckError(
+            errors.push(new ComponentTypeCheckError(
                 componentName,
                 wrongTypeMessage(
                     param.paramName,
@@ -120,13 +139,9 @@ export const checkNamedParams = (componentName, namedParamsTypes, namedParams) =
         });
     }
 
-    const optionalParamsNames = getOptionalParamNames(namedParamsTypes);
-    const optionalParamsChecks = checkParams(optionalParamsNames, namedParamsTypes, namedParams);
-    const wronglyTypedOptionalParams = getWronglyTypedParams(optionalParamsChecks);
-
     if (wronglyTypedOptionalParams.length > 0) {
         wronglyTypedOptionalParams.forEach(param => {
-            errors.push(new TypeCheckError(
+            errors.push(new ComponentTypeCheckError(
                 componentName,
                 wrongTypeMessage(
                     param.paramName,
@@ -138,11 +153,9 @@ export const checkNamedParams = (componentName, namedParamsTypes, namedParams) =
         });
     }
 
-    const illegalParamsNames = getIllegalParamNames(namedParamsTypes, namedParams);
-
     if (illegalParamsNames.length > 0) {
         illegalParamsNames.forEach(paramName => {
-            errors.push(new TypeCheckError(
+            errors.push(new ComponentTypeCheckError(
                 componentName,
                 `Unexpected parameter "${paramName}".`
             ));
@@ -152,6 +165,98 @@ export const checkNamedParams = (componentName, namedParamsTypes, namedParams) =
     if (errors.length > 0) {
         throw new ValidationException(errors);
     }
+};
+
+/**
+ * Checks named parameters types.
+ * @param {NamedParamTypes} namedParamsTypes
+ * @param {Object} namedParams
+ * @throws {ValidationException}
+ */
+export const checkNamedParams = (namedParamsTypes, namedParams) => {
+    const errors = [];
+
+    const {
+        missingMandatoryParamsNames,
+        wronglyTypedMandatoryParams,
+        wronglyTypedOptionalParams,
+        illegalParamsNames
+    } = _checkNamedParams(namedParamsTypes, namedParams);
+
+    if (missingMandatoryParamsNames.length > 0) {
+        missingMandatoryParamsNames.forEach(paramName => {
+            const param = missingMandatoryParams[paramName];
+            const paramType = typeof param === 'string' ? param : param.type;
+            errors.push(new TypeCheckError(
+                `Missing mandatory parameter "${paramName}" of type "${paramType}".`
+            ));
+        });
+    }
+
+    if (wronglyTypedMandatoryParams.length > 0) {
+        wronglyTypedMandatoryParams.forEach(param => {
+            errors.push(new TypeCheckError(
+                wrongTypeMessage(
+                    param.paramName,
+                    param.result.expected,
+                    param.result.actual,
+                    false
+                )
+            ));
+        });
+    }
+
+    if (wronglyTypedOptionalParams.length > 0) {
+        wronglyTypedOptionalParams.forEach(param => {
+            errors.push(new TypeCheckError(
+                wrongTypeMessage(
+                    param.paramName,
+                    param.result.expected,
+                    param.result.actual,
+                    true
+                )
+            ));
+        });
+    }
+
+    if (illegalParamsNames.length > 0) {
+        illegalParamsNames.forEach(paramName => {
+            errors.push(new TypeCheckError(
+                `Unexpected parameter "${paramName}".`
+            ));
+        });
+    }
+
+    if (errors.length > 0) {
+        throw new ValidationException(errors);
+    }
+};
+
+/**
+ * Checks named parameters types.
+ * @param {NamedParamTypes} namedParamsTypes
+ * @param {Object} namedParams
+ * @returns {ValidationResult}
+ */
+const _checkNamedParams = (namedParamsTypes, namedParams) => {
+    const mandatoryParamsNames = getMandatoryParamNames(namedParamsTypes);
+    const mandatoryParamsChecks = checkParams(mandatoryParamsNames, namedParamsTypes, namedParams);
+    const missingMandatoryParams = getMissingParams(mandatoryParamsChecks);
+    const wronglyTypedMandatoryParams = getWronglyTypedParams(mandatoryParamsChecks);
+    const missingMandatoryParamsNames = Object.keys(missingMandatoryParams);
+
+    const optionalParamsNames = getOptionalParamNames(namedParamsTypes);
+    const optionalParamsChecks = checkParams(optionalParamsNames, namedParamsTypes, namedParams);
+    const wronglyTypedOptionalParams = getWronglyTypedParams(optionalParamsChecks);
+
+    const illegalParamsNames = getIllegalParamNames(namedParamsTypes, namedParams);
+
+    return {
+        missingMandatoryParamsNames,
+        wronglyTypedMandatoryParams,
+        wronglyTypedOptionalParams,
+        illegalParamsNames
+    };
 };
 
 /**
