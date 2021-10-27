@@ -41,9 +41,11 @@
 export class Error {
     /**
      * @param {ErrorType} type
+     * @param {string} message
      */
-    constructor(type) {
+    constructor(type, message) {
         this.type = type;
+        this.message = message;
     }
 }
 
@@ -53,9 +55,8 @@ export class ComponentTypeCheckError extends Error {
      * @param {string} message
      */
     constructor(componentName, message) {
-        super('component-type-check');
+        super('component-type-check', message);
         this.componentName = componentName;
-        this.message = message;
     }
 }
 
@@ -64,8 +65,7 @@ export class TypeCheckError extends Error {
      * @param {string} message
      */
     constructor(message) {
-        super('type-check');
-        this.message = message;
+        super('type-check', message);
     }
 }
 

@@ -2,7 +2,11 @@ import {
     checkComponentHasChildren,
     checkComponentNamedParams,
     checkNamedParams,
-    checkComponentParam
+    checkComponentParam,
+    Error,
+    TypeCheckError,
+    ComponentTypeCheckError,
+    ValidationException,
 } from './src/validation.js';
 
 import { dedent } from './src/strings.js';
@@ -12,5 +16,9 @@ export {
     checkComponentNamedParams,
     checkNamedParams,
     checkComponentParam,
-    dedent
+    dedent,
+    Error,
+    TypeCheckError,
+    ComponentTypeCheckError,
+    ValidationException,
 };
