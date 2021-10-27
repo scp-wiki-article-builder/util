@@ -38,7 +38,7 @@
  * @property {string[]} illegalParamsNames
  */
 
-export class Error {
+export class ValidationError {
     /**
      * @param {ErrorType} type
      * @param {string} message
@@ -49,7 +49,7 @@ export class Error {
     }
 }
 
-export class ComponentTypeCheckError extends Error {
+export class ComponentTypeCheckError extends ValidationError {
     /**
      * @param {string} componentName
      * @param {string} message
@@ -60,7 +60,7 @@ export class ComponentTypeCheckError extends Error {
     }
 }
 
-export class TypeCheckError extends Error {
+export class TypeCheckError extends ValidationError {
     /**
      * @param {string} message
      */
@@ -71,7 +71,7 @@ export class TypeCheckError extends Error {
 
 export class ValidationException {
     /**
-     * @param {Error[]} errors
+     * @param {ValidationError[]} errors
      */
     constructor(errors) {
         this.errors = errors;
@@ -91,7 +91,7 @@ const wrongTypeMessage = (paramName, expectedType, actualType, isOptional) =>
 
 /**
  * Checks a component parameter type.
- * @param {string} componentName 
+ * @param {string} componentName
  * @param {ParamType} expectedType
  * @param {any} givenValue
  * @throws {ValidationException}
