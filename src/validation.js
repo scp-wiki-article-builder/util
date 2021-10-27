@@ -90,6 +90,24 @@ const wrongTypeMessage = (paramName, expectedType, actualType, isOptional) =>
     `given value type is "${actualType}" but "${expectedType}" was expected.`;
 
 /**
+ * Checks a component parameter type.
+ * @param {string} componentName 
+ * @param {ParamType} expectedType
+ * @param {any} givenValue
+ * @throws {ValidationException}
+ */
+export const checkComponentParam = (componentName, expectedType, givenValue) => {
+    if (typeof givenValue !== expectedType) {
+        throw new ValidationException([
+            new ComponentTypeCheckError(
+                componentName,
+                `Expected a parameter of type "${expectedType}" but given value is of type "${typeof givenValue}".`
+            )
+        ]);
+    }
+};
+
+/**
  * Asserts that a component has children.
  * @param {string} componentName
  * @param {Handlebars.HelperOptions} componentOptions
@@ -116,11 +134,13 @@ export const checkComponentNamedParams = (componentName, namedParamsTypes, named
     const errors = [];
 
     const {
-        missingMandatoryParamsNames,
+        missingMandatoryParams,
         wronglyTypedMandatoryParams,
         wronglyTypedOptionalParams,
         illegalParamsNames
     } = _checkNamedParams(namedParamsTypes, namedParams);
+
+    const missingMandatoryParamsNames = Object.keys(missingMandatoryParams);
 
     if (missingMandatoryParamsNames.length > 0) {
         missingMandatoryParamsNames.forEach(paramName => {
@@ -185,11 +205,13 @@ export const checkNamedParams = (namedParamsTypes, namedParams) => {
     const errors = [];
 
     const {
-        missingMandatoryParamsNames,
+        missingMandatoryParams,
         wronglyTypedMandatoryParams,
         wronglyTypedOptionalParams,
         illegalParamsNames
     } = _checkNamedParams(namedParamsTypes, namedParams);
+
+    const missingMandatoryParamsNames = Object.keys(missingMandatoryParams);
 
     if (missingMandatoryParamsNames.length > 0) {
         missingMandatoryParamsNames.forEach(paramName => {
@@ -251,7 +273,6 @@ const _checkNamedParams = (namedParamsTypes, namedParams) => {
     const mandatoryParamsChecks = checkParams(mandatoryParamsNames, namedParamsTypes, namedParams);
     const missingMandatoryParams = getMissingParams(mandatoryParamsChecks);
     const wronglyTypedMandatoryParams = getWronglyTypedParams(mandatoryParamsChecks);
-    const missingMandatoryParamsNames = Object.keys(missingMandatoryParams);
 
     const optionalParamsNames = getOptionalParamNames(namedParamsTypes);
     const optionalParamsChecks = checkParams(optionalParamsNames, namedParamsTypes, namedParams);
@@ -260,7 +281,7 @@ const _checkNamedParams = (namedParamsTypes, namedParams) => {
     const illegalParamsNames = getIllegalParamNames(namedParamsTypes, namedParams);
 
     return {
-        missingMandatoryParamsNames,
+        missingMandatoryParams,
         wronglyTypedMandatoryParams,
         wronglyTypedOptionalParams,
         illegalParamsNames
