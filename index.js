@@ -11,6 +11,8 @@ import {
 
 import { dedent } from './src/strings.js';
 
+import { ComponentException, RuntimeException } from './src/exceptions.js';
+
 export {
     checkComponentHasChildren,
     checkComponentNamedParams,
@@ -21,4 +23,6 @@ export {
     TypeCheckError,
     ComponentTypeCheckError,
     ValidationException,
+    ComponentException,
+    RuntimeException,
 };
