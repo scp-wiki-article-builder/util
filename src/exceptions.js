@@ -12,8 +12,10 @@ export class ComponentException {
 export class RuntimeException {
     /**
      * @param {string} message
+     * @param {string} info
      */
-    constructor(message) {
+    constructor(message, info = null) {
         this.message = message;
+        this.info = info;
     }
 }
