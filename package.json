@@ -1,18 +1,18 @@
 {
-  "name": "scpwiki-handlebars-util",
+  "name": "@scp-wiki-article-builder/util",
   "version": "1.0.0",
-  "description": "An utility library for using a JS templating language.",
+  "description": "Utility module for scp-wiki-article-builder.",
   "author": "422404",
   "license": "CC BY-SA 3.0",
   "type": "module",
   "main": "./index.js",
   "exports": "./index.js",
-  "scripts": {},
   "keywords": [
     "handlebars",
     "scp-foundation",
     "wikidot",
-    "scpwiki"
+    "scp-wiki",
+    "scp"
   ],
   "devDependencies": {
     "handlebars": "^4.7.7"
