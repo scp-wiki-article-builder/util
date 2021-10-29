@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "An utility library for using a JS templating language.",
   "author": "422404",
-  "license": "MIT",
+  "license": "CC BY-SA 3.0",
   "type": "module",
   "main": "./index.js",
   "exports": "./index.js",
