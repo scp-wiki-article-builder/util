@@ -1,3 +1,5 @@
+import { ValidationException } from './exceptions.js';
+
 /**
  * @typedef {('number' | 'string' | 'boolean' | 'object' | 'components')} ParamType
  */
@@ -66,15 +68,6 @@ export class TypeCheckError extends ValidationError {
      */
     constructor(message) {
         super('type-check', message);
-    }
-}
-
-export class ValidationException {
-    /**
-     * @param {ValidationError[]} errors
-     */
-    constructor(errors) {
-        this.errors = errors;
     }
 }
 

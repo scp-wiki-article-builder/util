@@ -6,12 +6,16 @@ import {
     ValidationError,
     TypeCheckError,
     ComponentTypeCheckError,
-    ValidationException,
 } from './src/validation.js';
 
 import { dedent } from './src/strings.js';
 
-import { ComponentException, RuntimeException } from './src/exceptions.js';
+import {
+    ComponentException,
+    RuntimeException,
+    ValidationException,
+    restoreExceptionPrototype,
+} from './src/exceptions.js';
 
 export {
     checkComponentHasChildren,
@@ -25,4 +29,5 @@ export {
     ValidationException,
     ComponentException,
     RuntimeException,
+    restoreExceptionPrototype,
 };
